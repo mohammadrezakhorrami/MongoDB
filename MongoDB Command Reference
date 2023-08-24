@@ -1,1 +1,859 @@
+---install mongodb/mongod
+rpm -ivh mongo*
+
+--unistall mongodb
+
+rpm -qa | grep mongodb
+
+
+rpm -e mongodb ----onle bye one
+
+---or
+
+rpm -qa | grep mongodb | xargs rpm -e
+
+
+
+--Check status
+
+netstat -pltun
+
+
+
+-------------------------------------------------------Stop and Start mb
+
+sudo service mongod stop
+
+
+sudo service mongod start
+
+
+
+
+--------------------------------------------------------Monitoring
+
+
+---mongotop provides a method to track the amount of time a MongoDB instance mongod spends reading and writing data
+
+---Syntax
+
+mongotop [frequency]
+
+mongotop 60
+mongostat -u Admin -p EmBer@94 --authenticationDatabase=admin
+
+-----The mongostat utility provides a quick overview of the status of a currently running mongod or mongos instance
+
+mongostat [frequency]
+mongotop -u Admin -p EmBer@50 --authenticationDatabase=admin
+
+
+
+--The following operation kills all sessions for all users in the system:
+
+
+
+db.runCommand( { killAllSessions: [ ] } )
+
+
+
+---explain query
+
+
+db.numbers.find( {num: {"$gt": 199995 }} ).explain()
+
+---lock managment
+
+db.serverStatus().globalLock
+
+/*
+    globalLock.currentQueue.total: This number can indicate a possible concurrency issue if it’s consistently high. 
+	This can happen if a lot of requests are waiting for a lock to be released.
+    globalLock.totalTime: If this is higher than the total database uptime, the database has been in a lock state for too long.
+
+*/
+
+
+db.serverStatus().locks
+
+/*
+    locks.<type>.acquireCount: Number of times the lock was acquired
+    locks.<type>.acquireWaitCount: Number of times the locks.acquireCount encountered waits because of conflicting locks
+    locks.<type>.timeAcquiringMicros: Cumulative wait time for lock acquisitions, in microseconds
+    locks.deadlockCount: Number of times the lock acquisitions have encountered deadlocks
+*/
+
+
+--mempry monitoring
+
+db.serverStatus().mem
+
+/*
+    mem.resident: Roughly equivalent to the amount of RAM in megabytes that the database process uses
+    mem.mapped: The amount of memory that the database maps, in megabytes
+
+*/
+
+---monitor connections
+
+db.serverStatus().connections
+
+/*
+    connections.current: The total number of current clients connected to this instance
+    connections.available: The total number of unused connections available to clients for this instance
+*/
+
+---monitor oplog
+
+db.getReplicationInfo()
+logSizeMB
+timeDiff
+
+
+
+db.adminCommand( { replSetGetStatus: 1 } )
+
+----monitoring bad query
+
+
+db.currentOp().inprog.forEach(
+  function(op) {
+    if(op.secs_running > 5) printjson(op);
+  }
+)
+
+-- kil process
+db.killOp(1344808)
+
+
+
+-----------------------------Statistics
+
+db.collectionname.stats()['size']
+
+-------------------------------------------------------Operation command
+
+--Print a list of all databases on the server.
+
+
+show dbs	
+
+
+--Switch current database to <db>. The mongo shell variable db is set to the current database.
+
+
+use <db>	
+
+
+--Print a list of all collections for current database.
+
+show collections	
+
+
+-------------------------------------------------------DML command
+
+
+---select with data type
+
+
+`db.Log.find({
+       	"timestamp" : {
+       		"$type" : "string"
+       	}
+       })
+	   
+	   
+-----select with date format
+
+
+db.Log.find().where({ dateString(timestamp): (dateString: "2022-01-14") })
+---select one field
+
+
+db.Log.find({}).project({timestamp:1, _id: 0})
+
+
+--Find all documents in the collection and returns a cursor. ~ select
+
+db.collection.find()	
+
+--Example coll.find( { name: "Joe" } );
+db.users.find({"username" : "mohammad","age" : {$gte:1}})
+
+
+--like sample
+
+db.users.find({"username" : /moham?/i})
+db.users.find({"name": /m/})
+
+
+------update
+db.IncompleteTransactionAccounts.updateOne({'ACCOUNT_ID':'0216878905001'},{$set:{'STATUS':'UNCHECKED'}})
+
+db.IncompleteTransactionAccounts.updateMany({STATUS:"CHECKING"}, {$set: {STATUS: "UNCHECKED"}})
+
+--Returns total number of documents in the collection.
+
+db.collection.count()	
+
+--count with cluase
+db.foo.count({"x" : 1})
+
+--distinct
+db.runCommand({"distinct" : "people", "key" : "age"})
+
+
+-----group by count
+db.IncompleteTransactionAccounts.aggregate()
+    .group({_id: "$STATUS", count: {$sum: 1}})
+    .sort("-count")    
+    .limit(100)
+
+
+
+--Insert a new document into the collection.
+
+db.collection.insertOne()	
+
+--Insert multiple new documents into the collection.
+
+db.collection.insertMany()	
+
+--Example for insert array
+ db.food.insert({"_id" : 1, "fruit" : ["apple", "banana", "peach"]})
+
+
+--Update a single existing document in the collection.
+
+db.collection.updateOne()	
+
+--Update multiple existing documents in the collection.
+
+db.collection.updateMany()	
+
+--Insert either a new document or update an existing document in the collection.
+
+db.collection.save()	
+
+--	Delete a single document from the collection.
+
+db.collection.deleteOne()
+
+--Delete documents from the collection.
+
+db.Statement.deleteMany(({ACCOUNT_ID :{$in:["0101131266001","0108891438009","0343754504007","0222139194001","0108891438009","0223179791004"]}})
+
+db.collection.deleteMany()	
+
+
+-----------Delete duplicate data
+
+   db.transaction_status_OLD.aggregate([
+  {
+    $group: {
+      _id: {
+        ACCOUNT_ID: "$ACCOUNT_ID",
+        STATUS: "$STATUS"
+      },
+      count: { $sum: 1 }
+    }
+  },
+  {
+    $match: {
+      count: { $gt: 1 },
+      "_id.STATUS": { $ne: "PROCESSING" }
+    }
+  },
+  {
+    $sort: { count: -1 }
+  }
+]).forEach(function(doc) {
+  db.transaction_status_OLD.deleteMany({
+    ACCOUNT_ID: doc._id.ACCOUNT_ID,
+    STATUS: doc._id.STATUS
+  });
+});
+
+
+--Drops or removes completely the collection.
+
+db.collection.drop()	
+
+
+--Create a new index on the collection if the index does not exist; otherwise, the operation has no effect.
+
+db.collection.createIndex()	
+--Example 
+db.numbers.ensureIndex({num: 1})
+
+--------------------group by function
+db.StatmentToday.aggregate( [
+    {
+        $group:
+            {
+                _id: {
+                    ACCOUNT_ID:"$ACCOUNT_ID",
+                    transactionDate:"$TRANSACTION_DATE",
+                    transactionTime:"$TRANSACTION_TIME",
+                    transactionTrace:"$TRANSACTION_TRACE"
+                },count:{$sum:1}
+            }
+    },
+    {
+        $match: {"count":{$gte:2}}
+    }
+] ,{ allowDiskUse: true })
+
+-----enable authentication
+
+1- connecto mongo
+
+
+2-use dbname
+
+3-
+
+use admin
+db.createUser(
+  {
+    user: "Admin",
+    pwd: "EmBer@3",
+    roles: [ { role: "userAdminAnyDatabase", db: "admin" }, "readWriteAnyDatabase" ]
+  }
+)
+
+exit
+
+4-vi /etc/mongod.conf 
+
+
+security:
+  authorization: enabled
+  
+5- sudo systemctl restart mongod
+
+
+--for connect to mongodb use below command
+
+mongo --port 27017 -u "Admin" -p --authenticationDatabase "admin"
+
+
+
+  use admin
+db.createUser(
+  {
+    user: "Admin",
+    pwd: "abc123",
+    roles: [ { role: "userAdminAnyDatabase", db: "admin" }, "readWriteAnyDatabase" ]
+  }
+)
+
+db.updateUser(
+
+ "Admin" ,{
+ roles: [ { role: "userAdminAnyDatabase", db: "admin" }] })
+ 
+ 
+ ---update pass
+db.updateUser(
+ "Admin" ,{
+pwd: "<cleartext password>" })
+> db.createUser({ user: "root", pwd: "root", roles: [ { role: "root", db: "admin" } ] })
+
+----------------------------------------------
+db.getSiblingDB("admin").auth("Admin", "abc123" )
+
+db.getSiblingDB("admin").auth("dbaadmin", "dbaadmin" )
+
+
+
+db.getSiblingDB("admin").auth("admincluster", "admincluster" )
+
+db.auth("admincluster", "admincluster" )
+db.auth("dbaadmin", "dbaadmin" )
+db.auth("Admin", "abc123" )
+
+
+db.auth("admin", "admin1" )
+
+
+
+db.getSiblingDB("admin").createUser(
+  {
+    "user" : "adminclus",
+    "pwd" : "adminclus",
+    roles: [ { "role" : "clusterAdmin", "db" : "admin" } ]
+	})
+	
+	db.updateUser( "admincluster" ,{ roles: [ { role: "readWrite", db: "admin" }] }) 
+	
+   db.grantRolesToUser("Admin", [ { role: "userAdminAnyDatabase", db: "admin" } ])	
+   
+   
+   
+   db.grantRolesToUser("Admin", [ { role: "clusterAdmin", db: "admin" } ])	
+
+	
+	db.RPRT.FORMS1.insert({"_id" :0,"FORM_NAME":"archive-info.php"})
+
+
+db.createUser(
+  {
+    user: "admin1",
+    pwd: "admin1",
+    roles: [ { role: "clusterAdmin", db: "admin" }]
+  }
+)
+
+
+
+db.runCommand(db.updateUser( "admincluster" ,{ roles: [ { role: "readWrite", db: "admin" }] }))
+
+
+
+db.runCommand(db.updateUser( "Admin" ,{ roles: [ { role: "readWrite", db: "admin" }] }))
+
+
+db.runCommand( { serverStatus: 1})
+db.getUsers()
+
+db.dropUser("Admin")
+
+
+
+db.runCommand( { grantRolesToUser: "Admin",
+                 roles: [
+                    { role:"readWriteAnyDatabase", db: "admin"},
+                    "readWriteAnyDatabase"
+                 ],
+                 writeConcern: { w: "majority" , wtimeout: 2000 }
+             } )
+
+
+db.runCommand( { grantRolesToUser: "Admin",
+                 roles: [
+                    { role:"readWriteAnyDatabase", db: "admin"},
+                    "readWriteAnyDatabase"
+                 ],
+                 writeConcern: { w: "majority" , wtimeout: 2000 }
+             } )
+
+			 
+			 
+			 Roles="clusterManager",
+
+
+db.getRoles(
+    {
+      rolesInfo: 1,
+      showPrivileges:true,
+      showBuiltinRoles: true
+    }
+)
+
+
+
+
+-----------------commapct grant
+
+db.createRole(
+   {
+      role: "myCustomCompactRole",
+      privileges: [
+         {
+            resource: { "db" : "uaa-db" , "collection" : "user" },
+            actions: [ "compact" ]
+         }
+      ],
+      roles: []
+   }
+)
+
+
+--------------------------------Connect to mongo with user pass
+
+mongo --port 27017 -u "Admin" -p --authenticationDatabase "admin"
+
+mongo  --host 127.0.0.1 --port 27017 --authenticationDatabase admin --quiet  --username U_name  --password PASS
+
+
+--------------------------------Mongo Tmplate output
+echo "db.serverStatus(1)" | mongo statementPay
+
+
+
+
+db.runCommand( { "connPoolStats" : 1 } )
+
+
+$MONGO_CMD <<< "db.runCommand( { "connPoolStats" : 1 } )" |\
+
+
+
+
+-------------------------------Mongo Log rotate
+db.adminCommand( { logRotate : 1 } )
+
+-------------------------------Mongo Log rotate config os
+vi /etc/logrotate.d/mongod.conf
+
+/dbdata2/mongoLog/mongod.log {
+  daily
+  size 100M
+  rotate 10
+  missingok
+  compress
+  delaycompress
+  notifempty
+  create 640 mongod mongod
+  sharedscripts
+  postrotate
+    /bin/kill -SIGUSR1 `cat /var/run/mongodb/mongod.pid 2>/dev/null` >/dev/null 2>&1
+  endscript
+}
+
+sudo logrotate -f /etc/logrotate.d/mongod.conf
+
+
+
+
+--------------------------------Mongo Log level managment
+
+db.adminCommand({getParameter: 1, logLevel: 1});
+
+db.getProfilingLevel()
+
+db.getProfilingStatus()
+
+
+---show all
+db.getLogComponents()
+
+-----get profile
+
+db.getProfilingLevel()
+
+
+---------------set profile level fo slow query
+ db.setProfilingLevel(1, { slowms: 200 })
+ 
+ 
+ db.runCommand({
+  profile: 1,
+  slowOpThresholdMs: 400,
+  sampleRate: 0.1
+})
+ 
+ 
+ ---or after enable profiling
+ db.system.profile.find({},{planSummary:1})
+ 
+ db.system.profile.find({},{planSummary:1,op:1,query:1,ns:1})
+ 
+ db.system.profile.aggregate([{$group: {_id:{op:"$op',ns:"$ns"}}}])
+ 
+---for change log level
+db.setLogLevel(0)
+
+db.setLogLevel(2, "storage.journal" )
+
+or 
+
+db.adminCommand( {
+   setParameter: 1,
+   logComponentVerbosity: {
+      verbosity: 1,
+      query: {
+         verbosity: 2
+      },
+      storage: {
+         verbosity: 2,
+         journal: {
+            verbosity: 1
+         }
+      }
+   }
+} )
+
+
+or
+---change on config file
+
+
+
+systemLog:
+   verbosity: 1
+   component:
+      query:
+         verbosity: 2
+      storage:
+         verbosity: 2
+         journal:
+            verbosity: 1
+
+
+
+------------------------------Active connections
+db.currentOp(true).inprog.reduce(
+  (accumulator, connection) => {
+    ipaddress = connection.client ? connection.client.split(":")[0] : "unknown";
+    accumulator[ipaddress] = (accumulator[ipaddress] || 0) + 1;
+    accumulator["TOTAL_CONNECTION_COUNT"]++;
+    return accumulator;
+  },
+  { TOTAL_CONNECTION_COUNT: 0 }
+)
+-------------------------or
+
+db.getSiblingDB("admin").aggregate( [
+   { $currentOp: { allUsers: true, idleConnections: true, idleSessions: true } }
+  ,{$project:{
+            "_id":0
+           ,client:{$arrayElemAt:[ {$split:["$client",":"]}, 0 ] }
+           ,curr_active:{$cond:[{$eq:["$active",true]},1,0]}
+           ,curr_inactive:{$cond:[{$eq:["$active",false]},1,0]}
+           }
+   }
+  ,{$match:{client:{$ne: null}}}
+  ,{$group:{_id:"$client",curr_active:{$sum:"$curr_active"},curr_inactive:{$sum:"$curr_inactive"},total:{$sum:1}}}
+  ,{$sort:{total:-1}}
+] )
+
+---
+netstat -anp --tcp --udp | grep mongo
+
+
+sudo lsof | grep mongod | grep TCP
+---------------------------------------------Relplica set 
+---sShow relica set status
+rs.status()
+
+
+---for change a member from primary to standby
+
+rs.stepDown()
+
+---- For define configuration
+
+rs.initiate()
+
+
+-----For allow red from stanby 
+
+rs.slaveOk()
+
+
+----Find and remobe replicaset name
+use local
+
+db.system.replset.find();
+
+
+db.system.replset.remove({});	
+ 
+
+------------mongodump and mongorestore
+
+mongodump -u Admin -p EmBer@50 --authenticationDatabase admin  --oplog
+
+
+mongorestore --host=192.168.107.194 --port=27017 -d statementPay --username=Admin  --authenticationDatabase=admin /dbdata1/cronJobs/dump/statementPay
+
+
+
+mongodump -u Admin -p password --authenticationDatabase admin -d statementPay -o /dbdata1/Tempwork/
+
+mongorestore --gzip --numParallelCollections=1 --numThreads=1 --numInsertionWorkersPerCollection=1 --host=172.30.43.94 --port=27017 -d statementLog --username=Admin  --authenticationDatabase=admin /dbdata1/tempWork/mrx/statementLog
+
+ 
+ ------dump restore zip
+ mongodump -u $Username -p $Pass --authenticationDatabase admin  $MONGODUMP_FLAGS --gzip  --out   $DUMPLOGPATH1>>$CHECKOSLOGPATH
+mongodump -u $Username -p $Pass  $MONGODUMP_FLAGS1  --gzip  --out $DUMPLOGPATH1>>$CHECKOSLOGPATH
+
+ 
+ 
+ -------------Connection string
+ 
+ 
+mongodb://pichusr:CTpAxcCk@192.168.247.178:27017,192.168.247.179:27017,192.168.247.180:27017/db_name?replicaSet=pichak-rs&authSource=admin&readPreference=secondary
+
+
+MONGO_HOST  =   "192.168.239.98"
+MONGO_HOST2 =   "192.168.239.99"
+MONGO_HOST3 =   "192.168.239.100"
+MONGO_DB    =   "falcon"
+MONGO_USER  =   "shnusr"
+MONGO_PASS  =   "jiwQKTGt"
+MONGO_PORT  =   "27017"
+MONGO_PORT2 =   "27017"
+MONGO_PORT3 =   "27017"
+ReplicaSet  =   "shahin-rs"
+AuthSource  =   "admin"
+ReadPreference = "secondary"
+
+
+
+-------------Page fault check
+
+
+
+db.serverStatus().extra_info
+
+
+modified pages evicted by application threads
+شون میده چقدر از ان page fault  ها به وسیله اپلیکیشن اتفاق افتاده `
+
+
+
+
+
+
+---------------explain 
+
+db.Customers.find({ 
+    "Name.Last Name" : "Johnston"
+}, {
+    "_id" : NumberInt(0), 
+    "Name.First Name" : NumberInt(1), 
+    "Name.Last Name" : NumberInt(1)
+}).sort({ 
+    "Name.Last Name" : NumberInt(1)
+}).explain("executionStats");
+
+
+
+
+--------------collection Size
+
+
+
+db.Collection_Name.stats();
+
+Object.bsonsize(
+    db.Collection_Name.findOne()
+)
+
+
+
+----Size of document
+db.audit_logs.find()
+.forEach(function(obj)
+{
+  var size = Object.bsonsize(obj);
+
+  var stats =
+  {
+    '_id': obj._id, 
+    'bytes': size, 
+    'KB': Math.round(size/(1000)), 
+    'MB': Math.round(size/(1000*1000))
+    
+  };
+
+  print(tojson(stats));
+});
+
+
+
+---------------------------Disable huge page
+echo never > /sys/kernel/mm/transparent_hugepage/defrag
+echo never > /sys/kernel/mm/transparent_hugepage/enabled
+
+
+
+
+----------COMPACT COLLECTION (AFTER huge update)
+
+
+db.runCommand({compact: "collection_name",force:true})
+
+
+--------------Find and  remove duplicate rows
+db.collectionName
+  .aggregate(
+    [
+      {
+        $group: {
+          _id: "$username",
+          dups: { $push: "$_id" },
+          count: { $sum: 1 },
+        },
+      },
+      { $match: { count: { $gt: 1 } } },
+    ],
+    { allowDiskUse: true }
+  )
+  .forEach(function (doc) {
+    doc.dups.shift();
+    db.collectionName.remove({ _id: { $in: doc.dups } });
+  });
+  
+  -------------sample
+   db.Statement.aggregate([
+  {
+    $group: {
+      _id: {
+        ACCOUNT_ID: "$ACCOUNT_ID",
+        TRANSACTION_TRACE: "$TRANSACTION_TRACE",
+        TRANSACTION_DATE: "$TRANSACTION_DATE",
+        STMT_CODE: "$STMT_CODE"
+      },
+      count: { $sum: 1 },
+      docs: { $push: "$_id" } // Store the _id values of duplicates
+    }
+  },
+  { $match: { count: { $gt: 1 } } }
+]).forEach(function (doc) {
+  doc.docs.shift();
+  db.Statement.remove({ _id: { $in: doc.docs } });
+});
+
+  
+ -----
+ 
+ db.currentOp({
+  "op": ""
+})
+
+
+
+
+-----------------MongoDB 6 shell conver to json with ""
+stringified = EJSON.stringify( db.conversions.findOne() )
+
+
+
+
+-----------index list
+
+db.getMongo().getDBNames().forEach(function (dbname) {
+  if (dbname != "admin" && dbname != "local" && dbname != "config") {
+    db.getSiblingDB(dbname).getCollectionNames().forEach(function (cname) {
+      output = db.getSiblingDB(dbname)[cname].aggregate({$indexStats:{} });  
+      output.forEach(function(findUnused) { 
+        if (findUnused.accesses.ops == 0 && findUnused.name != "_id_") {  
+          print(dbname + " \t" + cname + " \t" + JSON.stringify(findUnused) );  
+        } 
+      })
+    })
+  }
+})
+
+
+
+--------unused Indexes
+
+
+  db.getMongo().getDBNames().forEach(function (dbname) {
+    if (dbname != "admin" && dbname != "config" && dbname != "local" ) {
+    db.getSiblingDB(dbname).getCollectionNames().forEach(function (cname) {
+        output = db.getSiblingDB(dbname)[cname].aggregate({$indexStats:{} });  
+        output.forEach(function(findUnused) { 
+        if (findUnused.accesses.ops == 0 && findUnused.name != "_id_") {  
+            print(dbname + " \t" + cname + " \t" + JSON.stringify(findUnused) );  
+        } 
+        })
+    })
+}}) 
+
 
