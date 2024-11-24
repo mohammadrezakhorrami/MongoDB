@@ -1,0 +1,65 @@
+--set priority
+cfg = rs.conf()
+
+cfg.members[0].priority = 0.5
+cfg.members[1].priority = 2
+cfg.members[2].priority = 2
+
+
+rs.reconfig(cfg)
+
+
+----Prevent Secondary from Becoming Primary
+
+cfg = rs.conf()
+
+cfg.members[2].priority = 0
+
+
+rs.reconfig(cfg)
+
+
+---Configure a Hidden Replica Set Member
+
+cfg = rs.conf()
+cfg.members[0].priority = 0
+cfg.members[0].hidden = true
+rs.reconfig(cfg)
+
+
+
+--Configure a Delayed Replica Set Member
+
+cfg = rs.conf()
+cfg.members[0].priority = 0
+cfg.members[0].hidden = true
+cfg.members[0].secondaryDelaySecs = 3600
+rs.reconfig(cfg)
+
+
+
+--Configure Non-Voting Replica Set Member
+
+
+cfg.members[n].votes = 0;
+cfg.members[n].priority = 0;
+
+
+
+--Convert a Secondary to an Arbiter
+
+rs.remove("<hostname><:port>")
+
+rs.conf()
+
+mv /data/db /data/db-old
+
+mkdir /data/db
+
+
+Restart the mongod instance 
+
+
+rs.addArb("<hostname><:port>")
+
+rs.conf()

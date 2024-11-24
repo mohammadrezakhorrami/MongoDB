@@ -1,0 +1,144 @@
+1-
+hostname rocketmng03
+sudo hostnamectl set-hostname rocketmng03
+sudo nano /etc/hostname
+
+vi /etc/hosts
+10.122.125.86 rocketmng01
+10.122.125.87 rocketmng02
+10.122.125.88 rocketmng03
+
+
+
+2-
+
+mkdir  /dbdata01/mongoData
+chown mongodb:mongodb /dbdata01/mongoData -fR	
+mkdir  /dbdata02/mongoLog/
+chown mongodb:mongodb /dbdata02/mongoLog/ -fR	
+
+3-enable authorization
+mongosh
+
+db.createUser(
+  {
+    user: "Admin",
+    pwd: "abc123",
+    roles: [ { role: "userAdminAnyDatabase", db: "admin" }, "readWriteAnyDatabase" ]
+ }
+) 
+
+db.grantRolesToUser("Admin", [ { role: "userAdminAnyDatabase", db: "admin" } ])	
+db.grantRolesToUser("Admin", [ { role: "clusterAdmin", db: "admin" } ])	
+
+
+
+4-
+create key for trust between cluster servers
+
+mkdir /etc/mongokey/ 
+chown mongodb:mongodb /etc/mongokey/ -fR
+
+
+--ON PRIMARY
+
+openssl rand -base64 741 > mongoKey
+chmod 600 mongoKey
+chown mongod. mongoKey -fR
+--scp mongoKey  root@host2:/etc/mongokey/
+--scp mongoKey  root@host3:/etc/mongokey/
+
+scp mongoKey  root@10.122.125.87:/etc/mongokey/
+scp mongoKey  root@10.122.125.88:/etc/mongokey/
+
+
+--ON ALL SERVERS:
+chown mongodb:mongodb mongoKey
+
+5-
+should define a replica-set name 
+--our standard is: replSetName: "prjName-rs”"
+replSetName: "rocket-rs"
+
+vi /etc/mongod.conf
+-change as below:
+vi /etc/mongod.conf
+systemLog:
+  path:  /dbdata2/mongoLog/mongod.log
+
+storage:
+  dbPath: /dbdata1/mongoData
+
+net:
+  port: 27017
+  bindIp: 0.0.0.0  # Listen to local interface only, comment to listen on all interfaces.
+security:
+   authorization: enabled
+   keyFile: /etc/mongokey/mongoKey
+
+#operationProfiling:
+replication:
+   replSetName: "replicate-name"
+#sharding:
+## Enterprise-Only Options
+#auditLog:
+#snmp:
+
+
+
+--
+6-
+systemctl restart mongod.service
+
+7-connect to primary
+show database
+use admin
+db.createUser(
+  {
+    user: "Admin",
+    pwd: "pwd",
+    roles: [ { role: "userAdminAnyDatabase", db: "admin" }, "readWriteAnyDatabase" ]
+  }
+)
+
+db.grantRolesToUser("Admin", [ { role: "userAdminAnyDatabase", db: "admin" } ])	
+db.grantRolesToUser("Admin", [ { role: "clusterAdmin", db: "admin" } ])
+
+
+mongosh --host 127.0.0.1 --port 27017 --authenticationDatabase admin --quiet  --username Admin --password gerM@ny@86
+
+
+
+rs.initiate( {
+   _id : "rocket-rs",
+   members: [
+      { _id: 0, host: "10.122.125.86:27017" },
+      { _id: 1, host: "10.122.125.87:27017" },
+	  { _id: 2, host: "10.122.125.88:27017" }
+   ]
+})
+
+rs.status()
+
+
+
+8- check on other nodes
+rs.status()
+
+
+9-create user for app
+use admin
+
+db.createUser(
+  {
+    user: "user",
+    pwd: "pwd",
+    roles: [ { role: "userAdminAnyDatabase", db: "admin" }, "readWriteAnyDatabase" ]
+  }
+)
+
+###########################
+##cluster connection string
+--mongodb://user_name:pasword@172.30.43.94:27017,172.30.43.97:27017,172.30.43.95:27017,172.30.43.96:27017/?replicaSet=tst-rs&authSource=admin
+mongodb://rocketusr:1Bt7IH7@10.122.125.86:27017,10.122.125.86:27017,10.122.125.86:27017/?replicaSet=rocket-rs&authSource=admin
+
