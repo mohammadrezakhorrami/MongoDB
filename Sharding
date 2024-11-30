@@ -1,0 +1,132 @@
+
+1- config server
+
+cp /etc/mongod.conf /etc/mongod_cnfigserver.conf
+
+mkdir -p /dbmongo/mongoData/config_server
+
+chown mongod. /dbmongo/mongoData/config_server -fR
+
+
+
+vi /etc/mongod_cnfigserver.conf
+  port: 28000	
+  path: /mongoLog/mongod_config.log
+  dbPath: /dbmongo/mongoData/config_server
+replication:
+  replSetName: "rs-config"
+sharding:
+  clusterRole: configsvr
+
+security:
+   authorization: enabled
+   keyFile: /etc/mongokey/mongoKey
+
+
+
+cd /etc/mongokey
+
+openssl rand -base64 741 > mongoKey_config
+
+chmod 600 mongoKey_config
+chown mongod. mongoKey_config -fR
+on each host 
+
+scp mongoKey_config  root@host2:/etc/mongokey/
+
+scp mongoKey_config  root@host3:/etc/mongokey/
+
+
+
+
+3-
+
+
+mongo --port 28000
+
+Initiating the CSRS:
+
+rs.initiate()
+
+Creating super user on CSRS:
+
+use admin
+db.createUser({
+  user: "Admin",
+  pwd: "123456",
+  roles: [
+    {role: "root", db: "admin"}
+  ]
+})
+
+Authenticating as the super user:
+
+db.auth("admin", "123456")
+
+Add the second and third node to the CSRS:
+
+rs.add("192.168.59.133:28000")
+rs.add("192.168.59.134:28000")
+
+
+4-mongos
+vi /etc/mongod_mongos.conf
+
+Mongos config (mongos.conf):
+
+sharding:
+  configDB: rs-config/192.168.59.130:28000,192.168.59.133:28000,192.168.59.134:28000
+security:
+  keyFile: /var/mongodb/pki/m103-keyfile
+net:
+  bindIp: localhost,192.168.103.100
+  port: 27000
+systemLog:
+  destination: file
+  path: /var/mongodb/db/mongos.log
+  logAppend: true
+processManagement:
+  fork: true
+
+Start the mongos server:
+
+mongos -f mongos.conf
+
+
+
+--old replicaset
+sharding:
+  clusterRole: shardsvr
+
+security:
+   authorization: enabled
+   keyFile: /etc/mongokey/mongoKey
+
+
+
+sh.addShard("rs-acmd/192.168.59.134:27017")
+
+
+
+
+5- make replicaset as shard
+Configuration file for first config server csrs_1.conf:
+
+sharding:
+  clusterRole: configsvr
+replication:
+  replSetName: fad-rs
+security:
+  keyFile: /etc/mongokey/mongoKey
+net:
+  bindIp: 0.0.0.0
+  port: 27017
+systemLog:
+  destination: file
+  path: /mongoLog/mongod.log
+  logAppend: true
+processManagement:
+  fork: true
+
+
+... for other mmber
