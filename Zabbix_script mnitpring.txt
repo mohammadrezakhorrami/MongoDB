@@ -1,0 +1,260 @@
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------MongoDB Replication lag parameters-----------------------------------------------------------------------------------------------------------------------------------------------
+
+
+#!/bin/bash
+
+# MongoDB Replication lag parameters
+
+host=$(hostname -i)
+USERNAME="username"
+PASSWORD="password"
+DATABASE="admin"
+port=27017
+maxlag=0
+lag1=0
+lag2=0
+
+# Function to check if a command is available
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+# Check if either 'mongo' or 'mongosh' command is available
+if command_exists mongosh; then
+  mongo=/usr/bin/mongosh
+  Lag_cmd="rs.printSecondaryReplicationInfo()"
+  MONGO_URI="mongodb://$USERNAME:$PASSWORD@$host:$port/$DATABASE"
+ # Check if the host is primary or secondary
+ is_primary=$("$mongo" $MONGO_URI --quiet --eval "db.isMaster().ismaster")
+    if [ "$is_primary" == "true" ]; then
+    execcmd=$("$mongo" $MONGO_URI --quiet --eval "$Lag_cmd")
+    lag1=$(echo "$execcmd" | awk 'NR==4{print $2}' | cut -c 2-)
+    lag2=$(echo "$execcmd" | awk 'NR==10{print $2}'| cut -c 2-)
+    fi
+elif command_exists mongo; then
+  mongo=/usr/bin/mongo
+  Lag_cmd="rs.printSlaveReplicationInfo()"
+  # MongoDB connection URI
+  MONGO_URI="mongodb://$USERNAME:$PASSWORD@$host:$port/$DATABASE"
+  # Check if the host is primary or secondary
+ is_primary=$("$mongo" $MONGO_URI --quiet --eval "db.isMaster().ismaster")
+  if [ "$is_primary" == "true" ]; then
+  execcmd=$("$mongo" $MONGO_URI --quiet --eval "$Lag_cmd")
+  lag1=$(echo "$execcmd" | awk 'NR==3 {print $1}')
+  lag2=$(echo "$execcmd" | awk 'NR==6 {print $1}')
+   fi
+fi
+
+ if ((lag1 >= lag2 )); then
+    maxlag=$lag1
+else
+    maxlag=$lag2
+fi
+#output
+echo  $maxlag
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------MongoDB Replication lag parameters-----------------------------------------------------------------------------------------------------------------------------------------------
+#!/bin/bash
+
+# MongoDB Replication lag parameters
+
+host=$(hostname -i)
+USERNAME="username"
+PASSWORD="password"
+DATABASE="admin"
+port=27017
+maxlag=0
+lag1=0
+lag2=0
+
+# Function to check if a command is available
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+# Check if either 'mongo' or 'mongosh' command is available
+if command_exists mongosh; then
+  mongo=/usr/bin/mongosh
+  Lag_cmd="rs.printSecondaryReplicationInfo()"
+  MONGO_URI="mongodb://$USERNAME:$PASSWORD@$host:$port/$DATABASE"
+ # Check if the host is primary or secondary
+ is_primary=$("$mongo" $MONGO_URI --quiet --eval "db.isMaster().ismaster")
+    if [ "$is_primary" == "true" ]; then
+    execcmd=$("$mongo" $MONGO_URI --quiet --eval "$Lag_cmd")
+    lag1=$(echo "$execcmd" | awk 'NR==4{print $2}' | cut -c 2-)
+    lag2=$(echo "$execcmd" | awk 'NR==10{print $2}'| cut -c 2-)
+    fi
+elif command_exists mongo; then
+  mongo=/usr/bin/mongo
+  Lag_cmd="rs.printSlaveReplicationInfo()"
+  # MongoDB connection URI
+  MONGO_URI="mongodb://$USERNAME:$PASSWORD@$host:$port/$DATABASE"
+  # Check if the host is primary or secondary
+ is_primary=$("$mongo" $MONGO_URI --quiet --eval "db.isMaster().ismaster")
+  if [ "$is_primary" == "true" ]; then
+  execcmd=$("$mongo" $MONGO_URI --quiet --eval "$Lag_cmd")
+  lag1=$(echo "$execcmd" | awk 'NR==3 {print $1}')
+  lag2=$(echo "$execcmd" | awk 'NR==6 {print $1}')
+   fi
+fi
+
+ if ((lag1 >= lag2 )); then
+    maxlag=$lag1
+else
+    maxlag=$lag2
+fi
+#output
+echo  $maxlag
+
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------MongoDB monitor pagefault-----------------------------------------------------------------------------------------------------------------------------------------------
+#!/bin/bash
+
+# MongoDB monitor pagefault
+
+host=$(hostname -i)
+USERNAME="username"
+PASSWORD="password"
+DATABASE="admin"
+port=27017
+PageFault_cmd="db.serverStatus().extra_info.page_faults"
+
+# Function to check if a command is available
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+# Check if either 'mongo' or 'mongosh' command is available
+if command_exists mongosh; then
+  mongo=/usr/bin/mongosh
+  PageFault_cmd="db.serverStatus().extra_info.page_faults" | awk -F'"' '{print $2}'
+  MONGO_URI="mongodb://$USERNAME:$PASSWORD@$host:$port/$DATABASE"
+  pagefault=$("$mongo" $MONGO_URI --quiet --eval "$PageFault_cmd" | awk -F'"' '{print $2}')
+
+elif command_exists mongo; then
+  mongo=/usr/bin/mongo
+    # MongoDB connection URI
+  MONGO_URI="mongodb://$USERNAME:$PASSWORD@$host:$port/$DATABASE"
+  # Check if the host is primary or secondary
+
+  pagefault=$("$mongo" $MONGO_URI --quiet --eval "$PageFault_cmd")
+
+fi
+
+
+#output
+echo  $pagefault
+
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------MongoDB Oplogwindow monitor-----------------------------------------------------------------------------------------------------------------------------------------------
+
+
+#!/bin/bash
+
+# MongoDB Oplogwindow monitor
+
+host=$(hostname -i)
+USERNAME="username"
+PASSWORD="password"
+DATABASE="admin"
+port=27017
+oplogwindow=-1
+oplogwindowcmd="db.getReplicationInfo().timeDiff"
+
+
+# Function to check if a command is available
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+# Check if either 'mongo' or 'mongosh' command is available
+if command_exists mongosh; then
+ mongo=/usr/bin/mongosh
+elif command_exists mongo; then
+ mongo=/usr/bin/mongo
+fi
+
+ # Check if the host is primary or secondary
+ MONGO_URI="mongodb://$USERNAME:$PASSWORD@$host:$port/$DATABASE"
+ is_primary=$("$mongo" $MONGO_URI --quiet --eval "db.isMaster().ismaster")
+    if [ "$is_primary" == "true" ]; then
+    oplogwindow=$("$mongo" $MONGO_URI --quiet --eval $oplogwindowcmd)
+
+  fi
+#output
+echo  $oplogwindow
+
+
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------Connection available-----------------------------------------------------------------------------------------------------------------------------------------------
+#!/bin/bash
+#This script is for Nodestat&Conn Current Connection and Connection available
+
+host=$(hostname -i)
+USERNAME=username
+PASSWORD=password
+DB_PORT=27017
+
+# Function to check if a command is available
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+# Check if either 'mongo' or 'mongosh' command is available
+if command_exists mongosh; then
+ mongo=/usr/bin/mongosh
+elif command_exists mongo; then
+ mongo=/usr/bin/mongo
+fi
+
+mongo_connect="$mongo --host  "$host"  --port "$DB_PORT" --authenticationDatabase admin --quiet --username "$USERNAME" --password "$PASSWORD"  "
+
+
+CASE=$1
+case $CASE in
+    "Nodestate")
+     Nodestate=$($mongo_connect  --eval  "rs.status().myState")
+          echo $Nodestate
+      ;;
+      "ConnCurrent")
+      ConnCurrent=$($mongo_connect  --eval  "db.serverStatus().connections.current")
+      echo $ConnCurrent
+      ;;
+
+      "ConnAvailable")
+      ConnAvailable=$($mongo_connect  --eval  "db.serverStatus().connections.available")
+      echo $ConnAvailable
+      ;;
+
+
+esac
+
+ 
+
