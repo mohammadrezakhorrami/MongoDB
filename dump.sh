@@ -7,8 +7,8 @@
 
 MONGODUMP_FLAGS='--db=local --collection=oplog.rs'
 MONGODUMP_FLAGS1='--oplog '
-Username='monUser'
-Pass='db6895e'
+Username='user'
+Pass='password'
 
 CHECKOSLOGPATH=/dbdata1/cronJobs/output/`date +%y-%m-%d`_oplog.txt
 CHECKOSLOGPATH_Rm=/dbdata1/cronJobs/output/
@@ -18,17 +18,17 @@ Log_path=/dbdata2/mongoLog/
 DELETE_DAYS=2
 
 IP=$(hostname -i)
-FTPUSER='ftptest'
-FTPPASSWD='Aa123456'
+FTPUSER='ftpuser'
+FTPPASSWD='ftp paddword'
 CURRENTDATE=$(date +%y-%m-%d)
-FTPFILES1='/dbdata1/cronJobs/sh/ftpfiles.sh'
+FTPFILES1='/path_/sh/ftpfiles.sh'
 COUNTER=0
 Directory=`date --date="-1 days" +%Y%m%d`
 dayly=`date --date="-1 days" +%y-%m-%d`
 YEAR=`date +%Y`
 MONTH=`date +%Y%m`
 HOSTNAME=`hostname -i`
-FTPSRV='192.168.50.58'
+FTPSRV='FTP_SERVER_IP'
 FTPFILES2='/home/mongo/sc/ftpfiles.sh'
 DAYOFWEEK=$(date +"%a")
 
